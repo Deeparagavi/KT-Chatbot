@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fullstack ChatBot</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Fullstack ChatBot</h1>
+
+<!-- Home / Auth Screen -->
+<div id="auth">
+    <h3>Login / Register</h3>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button id="loginBtn">Login</button>
+    <button id="registerBtn">Register</button>
+</div>
+
+<!-- Chat Interface, hidden until login -->
+<div id="chatUI" style="display:none;">
+    <div id="chat"></div>
+    <input type="text" id="query" placeholder="Ask something..." style="width:50%;">
+    <button id="send">Send</button>
+    <input type="file" id="fileUpload">
+    <button id="uploadBtn">Upload</button>
+    <button id="logoutBtn">Logout</button>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

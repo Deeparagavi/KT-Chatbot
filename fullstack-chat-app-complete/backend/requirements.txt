@@ -1,0 +1,15 @@
+Flask
+Flask-JWT-Extended
+Flask-Cors
+bcrypt
+SQLAlchemy
+python-dotenv
+scikit-learn
+joblib
+requests
+openai
+azure-storage-blob
+atlassian-python-api
+pytesseract
+Pillow
+faiss-cpu

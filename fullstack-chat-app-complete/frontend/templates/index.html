@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fullstack Chat App</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;padding:16px}
+    #app{max-width:900px;margin:0 auto}
+    .box{border:1px solid #ddd;padding:12px;margin-bottom:12px;border-radius:8px}
+    #messages{height:320px;overflow:auto;background:#fafafa;padding:8px}
+    .msg{padding:6px;margin-bottom:6px;border-radius:6px}
+    .user{background:#e6f7ff}
+    .assistant{background:#fff7e6}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h2>Fullstack Chat App — Runnable</h2>
+
+    <div class="box" id="auth">
+      <h3>Auth</h3>
+      <div>
+        <input id="username" placeholder="username" />
+        <input id="password" placeholder="password" type="password" />
+        <button id="btn-register">Register</button>
+        <button id="btn-login">Login</button>
+      </div>
+      <div id="auth-msg"></div>
+    </div>
+
+    <div class="box" id="filebox">
+      <h3>Upload File / Image</h3>
+      <input type="file" id="fileinput" />
+      <button id="btn-upload">Upload</button>
+      <div id="upload-result"></div>
+    </div>
+
+    <div class="box">
+      <h3>Chat</h3>
+      <div id="messages"></div>
+      <textarea id="input" rows="3" style="width:100%"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="send">Send</button>
+        <button id="load-history">Load History</button>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+let token = null;
+function setAuthToken(t){ token = t; localStorage.setItem('chat_token', t)}
+function getAuthToken(){ return token || localStorage.getItem('chat_token') }
+
+async function apiFetch(path, opts={}){
+  opts.headers = opts.headers || {};
+  if(getAuthToken()) opts.headers['Authorization'] = 'Bearer ' + getAuthToken();
+  const res = await fetch(path, opts);
+  if(res.status === 401) alert('Unauthorized — please login');
+  return res;
+}
+
+document.getElementById('btn-register').onclick = async ()=>{
+  const u = document.getElementById('username').value;
+  const p = document.getElementById('password').value;
+  const r = await apiFetch('/register', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p})});
+  const j = await r.json();
+  document.getElementById('auth-msg').innerText = JSON.stringify(j);
+}
+
+document.getElementById('btn-login').onclick = async ()=>{
+  const u = document.getElementById('username').value;
+  const p = document.getElementById('password').value;
+  const r = await apiFetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p})});
+  const j = await r.json();
+  if(j.access_token){ setAuthToken(j.access_token); document.getElementById('auth-msg').innerText = 'logged in' }
+  else document.getElementById('auth-msg').innerText = JSON.stringify(j);
+}
+
+document.getElementById('btn-upload').onclick = async ()=>{
+  const f = document.getElementById('fileinput').files[0];
+  if(!f) return alert('pick a file');
+  const fd = new FormData(); fd.append('file', f);
+  const res = await apiFetch('/upload', {method:'POST', body: fd});
+  const j = await res.json();
+  document.getElementById('upload-result').innerHTML = JSON.stringify(j);
+}
+
+function appendMessage(role, text){
+  const container = document.getElementById('messages');
+  const d = document.createElement('div'); d.className = 'msg ' + (role==='user'? 'user':'assistant'); d.innerText = text;
+  container.appendChild(d); container.scrollTop = container.scrollHeight;
+}
+
+document.getElementById('send').onclick = async ()=>{
+  const txt = document.getElementById('input').value;
+  if(!txt) return;
+  appendMessage('user', txt);
+  document.getElementById('input').value = '';
+  // POST and stream response
+  const res = await apiFetch('/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: txt})});
+  if(!res.body) return;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while(true){
+    const {done, value} = await reader.read();
+    if(done) break;
+    buf += decoder.decode(value, {stream:true});
+    const parts = buf.split('\\n\\n');
+    for(let i=0;i<parts.length-1;i++){
+      const ev = parts[i];
+      if(ev.startsWith('data:')){
+        const payload = ev.replace("data:",'');
+        // console.log(payload)
+        try{ const obj = JSON.parse(payload); if(obj.chunk) appendMessage('assistant', obj.chunk); }
+        catch(e){ console.log('parse err', e) }
+      }
+    }
+    buf = parts[parts.length-1];
+  }
+};
+
+// Load history
+document.getElementById('load-history').onclick = async ()=>{
+  const h = await apiFetch('/history');
+  const j = await h.json();
+  document.getElementById('messages').innerHTML = '';
+  j.forEach(m=> appendMessage(m.role, m.content));
+}
+
+window.addEventListener('load', ()=>{ const t = localStorage.getItem('chat_token'); if(t) token = t });
+</script>
+</body>
+</html>
